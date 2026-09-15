@@ -81,6 +81,21 @@ class ConfigEditorTestCase(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
+    def test_provider_accepts_supported_modes_and_rejects_unknown_mode_without_writing(self):
+        editor = self.config_editor.ConfigEditor(self.config_path)
+        original = self.config_path.read_bytes()
+        for provider in ('openai', 'gemini', ''):
+            with self.subTest(provider=provider):
+                result = editor.validate({'llm.provider': provider})
+                self.assertTrue(result.valid, result.errors)
+                self.assertEqual(result.values['llm.provider'], provider or 'openai')
+        with self.assertRaises(self.config_editor.ConfigValidationError) as raised:
+            editor.save({'llm.provider': 'unsupported'})
+        self.assertEqual([(error.field, error.code) for error in raised.exception.errors],
+                         [('llm.provider', 'choice')])
+        self.assertEqual(self.config_path.read_bytes(), original)
+        self.assertFalse(editor.backup_path.exists())
+
     def test_render_form_masks_existing_secrets(self):
         editor = self.config_editor.ConfigEditor(self.config_path)
 
@@ -105,6 +120,24 @@ class ConfigEditorTestCase(unittest.TestCase):
         self.assertEqual(form["agents.translate.allow_list"], "https://example.com/")
         self.assertIn("extra_body:", form["llm.extra_params"])
         self.assertIn("enable_thinking: false", form["llm.extra_params"])
+
+    def test_render_form_handles_round_trip_scalars_in_extra_params(self):
+        self.config_path.write_text(
+            'llm:\n'
+            '  extra_params:\n'
+            '    "temperature": 0.0\n'
+            '    thinking_budget: 0\n'
+            '    labels: ["on", 1_000, false]\n',
+            encoding='utf-8',
+        )
+        editor = self.config_editor.ConfigEditor(self.config_path)
+
+        form = editor.render_form()
+
+        from yaml import safe_load
+        self.assertEqual(safe_load(form['llm.extra_params']), {
+            'temperature': 0.0, 'thinking_budget': 0, 'labels': ['on', 1000, False],
+        })
 
     def test_apply_updates_fields_and_preserves_masked_secrets(self):
         editor = self.config_editor.ConfigEditor(self.config_path)

@@ -292,14 +292,52 @@ class AdminAgentsTestCase(unittest.TestCase):
                 self.assertEqual(self.path.read_text(encoding='utf-8'), 'invalid: [yaml-secret')
                 self.assertFalse(Path('config.yml.bak').exists())
 
-    def test_overview_links_to_agent_editor_and_remains_read_only(self):
+    def test_config_page_edits_other_sections_and_links_to_separate_agent_editor(self):
         client = self.client()
         response = client.get('/admin/config', headers=self.headers)
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn('href="/admin/config/agents"', html)
-        self.assertNotIn('<form', html)
-        self.assertEqual(client.post('/admin/config', headers=self.headers).status_code, 405)
+        form = AgentFormParser(html).fields
+        for field in ('miniflux.base_url', 'llm.model', 'ai_news.schedule', 'feeds_status.enabled'):
+            self.assertIn(field, form)
+        self.assertFalse(any(field.startswith('agents.') for field in form))
+        original = self.path.read_bytes()
+        response = client.post('/admin/config', headers=self.headers, data={
+            'csrf_token': form['csrf_token'], 'agents.summary.title': '错误的保存入口',
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.path.read_bytes(), original)
+        self.assertFalse(Path('config.yml.bak').exists())
+
+    def test_both_editors_preserve_changes_saved_through_the_other_page(self):
+        client = self.client()
+        agent_form = AgentFormParser(client.get(self.url, headers=self.headers).get_data(as_text=True)).fields
+        config_form = AgentFormParser(client.get('/admin/config', headers=self.headers).get_data(as_text=True)).fields
+        response = client.post('/admin/config', headers=self.headers, data={
+            'csrf_token': config_form['csrf_token'],
+            'miniflux.base_url': 'https://new-miniflux.example.test',
+            'llm.model': 'updated-model',
+            'ai_news.url': 'https://news.example.test',
+            'feeds_status.url': 'https://status.example.test',
+        })
+        self.assertEqual(response.status_code, 303)
+        agent_form['agents.summary.title'] = '独立页面保存的摘要'
+        response = client.post(self.url, headers=self.headers, data=agent_form)
+        self.assertEqual(response.status_code, 200)
+        editor = importlib.import_module('common.config_editor').ConfigEditor(self.path)
+        saved = editor.load()
+        self.assertEqual(saved['miniflux']['base_url'], 'https://new-miniflux.example.test')
+        self.assertEqual(saved['llm']['model'], 'updated-model')
+        self.assertEqual(saved['ai_news']['url'], 'https://news.example.test')
+        self.assertEqual(saved['feeds_status']['url'], 'https://status.example.test')
+        response = client.post('/admin/config', headers=self.headers, data={
+            'csrf_token': config_form['csrf_token'], 'llm.model': 'another-model',
+        })
+        self.assertEqual(response.status_code, 303)
+        saved = editor.load()
+        self.assertEqual(saved['agents']['summary']['title'], '独立页面保存的摘要')
+        self.assertEqual(saved['agents']['custom_agent']['prompt'], 'Do not change')
 
     def test_agent_routes_are_disabled_unless_explicitly_enabled(self):
         original = self.path.read_text(encoding='utf-8')
