@@ -73,36 +73,56 @@ def _config_sections(config):
 
     prompts = config.ai_news_prompts or {}
     sections = [
-        {'id': 'miniflux', 'title': 'Miniflux', 'fields': [
-            ('服务地址', 'miniflux.base_url', config.miniflux_base_url),
-            ('API key', 'miniflux.api_key', _masked_secret(config.miniflux_api_key)),
-            ('Webhook secret', 'miniflux.webhook_secret', _masked_secret(config.miniflux_webhook_secret)),
-            ('轮询间隔（分钟）', 'miniflux.schedule_interval', config.miniflux_schedule_interval or '自动（未指定间隔）'),
-        ]},
-        {'id': 'llm', 'title': 'LLM', 'fields': [
-            ('服务商', 'llm.provider', config.llm_provider),
-            ('服务地址', 'llm.base_url', config.llm_base_url),
-            ('API key', 'llm.api_key', _masked_secret(config.llm_api_key)),
-            ('模型', 'llm.model', config.llm_model),
-            ('内容长度上限', 'llm.max_length', config.llm_max_length),
-            ('超时（秒）', 'llm.timeout', config.llm_timeout),
-            ('并发数', 'llm.max_workers', config.llm_max_workers),
-            ('每分钟请求上限', 'llm.RPM', config.llm_RPM),
-            ('额外请求参数（YAML）', 'llm.extra_params', config.llm_extra_params),
-        ]},
-        {'id': 'agents', 'title': 'Agents', 'fields': agent_fields},
-        {'id': 'ai-news', 'title': 'AI News', 'fields': [
-            ('服务地址', 'ai_news.url', config.ai_news_url),
-            ('生成时间', 'ai_news.schedule', config.ai_news_schedule),
-            ('问候提示词', 'ai_news.prompts.greeting', prompts.get('greeting')),
-            ('摘要提示词', 'ai_news.prompts.summary', prompts.get('summary')),
-            ('分类提示词', 'ai_news.prompts.summary_block', prompts.get('summary_block')),
-        ]},
-        {'id': 'feeds-status', 'title': 'Feeds Status', 'fields': [
-            ('是否启用', 'feeds_status.enabled', config.feeds_status_enabled),
-            ('服务地址', 'feeds_status.url', config.feeds_status_url),
-            ('检查时间', 'feeds_status.schedule', config.feeds_status_schedule),
-        ]},
+        {
+            'id': 'miniflux', 'title': 'Miniflux',
+            'summary': '连接 Miniflux，配置 API key、webhook secret 和未读条目轮询间隔。',
+            'fields': [
+                ('服务地址', 'miniflux.base_url', config.miniflux_base_url),
+                ('API key', 'miniflux.api_key', _masked_secret(config.miniflux_api_key)),
+                ('Webhook secret', 'miniflux.webhook_secret', _masked_secret(config.miniflux_webhook_secret)),
+                ('轮询间隔（分钟）', 'miniflux.schedule_interval', config.miniflux_schedule_interval or '自动（未指定间隔）'),
+            ],
+        },
+        {
+            'id': 'llm', 'title': 'LLM',
+            'summary': '配置 provider、模型、速率限制、超时和 provider 透传参数。',
+            'fields': [
+                ('服务商', 'llm.provider', config.llm_provider),
+                ('服务地址', 'llm.base_url', config.llm_base_url),
+                ('API key', 'llm.api_key', _masked_secret(config.llm_api_key)),
+                ('模型', 'llm.model', config.llm_model),
+                ('内容长度上限', 'llm.max_length', config.llm_max_length),
+                ('超时（秒）', 'llm.timeout', config.llm_timeout),
+                ('并发数', 'llm.max_workers', config.llm_max_workers),
+                ('每分钟请求上限', 'llm.RPM', config.llm_RPM),
+                ('额外请求参数（YAML）', 'llm.extra_params', config.llm_extra_params),
+            ],
+        },
+        {
+            'id': 'agents', 'title': 'Agents',
+            'summary': '固定 summary / translate 两个 Agent；本页只读，使用独立页面编辑。',
+            'fields': agent_fields,
+        },
+        {
+            'id': 'ai-news', 'title': 'AI News',
+            'summary': '配置每日生成时间和新闻提示词，用于生成 AI News RSS 内容。',
+            'fields': [
+                ('服务地址', 'ai_news.url', config.ai_news_url),
+                ('生成时间', 'ai_news.schedule', config.ai_news_schedule),
+                ('问候提示词', 'ai_news.prompts.greeting', prompts.get('greeting')),
+                ('摘要提示词', 'ai_news.prompts.summary', prompts.get('summary')),
+                ('分类提示词', 'ai_news.prompts.summary_block', prompts.get('summary_block')),
+            ],
+        },
+        {
+            'id': 'feeds-status', 'title': 'Feeds Status',
+            'summary': '配置订阅健康检查 feed 的启用状态、地址和每日检查时间。',
+            'fields': [
+                ('是否启用', 'feeds_status.enabled', config.feeds_status_enabled),
+                ('服务地址', 'feeds_status.url', config.feeds_status_url),
+                ('检查时间', 'feeds_status.schedule', config.feeds_status_schedule),
+            ],
+        },
     ]
     for section in sections:
         section['fields'] = [(label, key, _display_value(value)) for label, key, value in section['fields']]

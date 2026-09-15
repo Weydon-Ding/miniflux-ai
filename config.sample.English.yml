@@ -78,11 +78,14 @@ feeds_status:
   schedule: "09:00"
 
 admin:
-  # Disabled by default. Set to true only when you want to expose the config frontend.
+  # Disabled by default. Set to true and restart only when you want to expose /admin/config.
   enabled: false
   # Username for the Basic Auth protected config page.
   username: admin
   # Prefer setting the password through this environment variable instead of storing it in config.yml.
+  # This environment variable takes precedence over admin.password; the fallback is used only when it is unset or empty.
   password_env: MINIFLUX_AI_ADMIN_PASSWORD
   # Optional fallback if the environment variable is not set.
   # password: change-me
+  # Saving from the UI backs up config.yml to config.yml.bak; restart miniflux-ai after saving for changes to fully apply.
+  # API key / webhook secret fields in the UI preserve the old value when left blank or kept as ********.

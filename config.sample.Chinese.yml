@@ -77,11 +77,14 @@ feeds_status:
   schedule: "09:00"
 
 admin:
-  # 默认关闭。只有明确改成 true 时才会暴露配置前端入口。
+  # 默认关闭。只有明确改成 true 并重启后，才会暴露配置前端入口 /admin/config。
   enabled: false
   # Basic Auth 保护的配置页面用户名。
   username: admin
   # 建议通过该环境变量设置密码，避免把密码写入 config.yml。
+  # 该环境变量优先级高于 admin.password；未设置或为空时才使用 password 回退值。
   password_env: MINIFLUX_AI_ADMIN_PASSWORD
   # 如果未设置环境变量，可使用该配置作为回退密码。
   # password: change-me
+  # 保存配置前会备份到 config.yml.bak；保存后需要重启 miniflux-ai 才会完全生效。
+  # 管理页面中的 API key / webhook secret 留空或保持 ******** 表示保留原值。

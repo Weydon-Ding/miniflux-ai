@@ -63,7 +63,7 @@ The repository includes a template configuration file: `config.sample.yml`. Modi
 
 ### 配置管理页面
 
-配置页面默认关闭。需要使用时，在 `config.yml` 中显式启用，并为运行进程设置管理员密码环境变量：
+配置页面默认关闭。需要使用时，在 `config.yml` 中显式启用：
 
 ```yaml
 admin:
@@ -72,9 +72,26 @@ admin:
   password_env: MINIFLUX_AI_ADMIN_PASSWORD
 ```
 
-重启后，在浏览器中访问现有 Flask 服务的 `/admin/config`，使用 `admin.username` 和密码通过 Basic Auth 认证。密码优先读取 `admin.password_env` 指定的环境变量，也可以使用 `admin.password` 作为回退。通过反向代理访问时应启用 HTTPS，避免明文传输认证凭据。
+然后为运行 miniflux-ai 的进程设置管理员密码环境变量，例如本地运行：
 
-页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示配置，使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。
+```bash
+export MINIFLUX_AI_ADMIN_PASSWORD='change-this-password'
+python main.py
+```
+
+容器部署可在 compose 环境变量中传入同一个变量：
+
+```yaml
+services:
+  miniflux_ai:
+    environment:
+      TZ: Asia/Shanghai
+      MINIFLUX_AI_ADMIN_PASSWORD: change-this-password
+```
+
+重启后，在浏览器中访问现有 Flask 服务的 `/admin/config`，使用 `admin.username` 和密码通过 Basic Auth 认证。密码优先读取 `admin.password_env` 指定的环境变量；只有环境变量未设置或为空时，才使用 `admin.password` 作为回退。通过反向代理访问时应启用 HTTPS，避免明文传输认证凭据。
+
+页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示配置，并在页面顶部明确说明保存后的重启要求、备份位置和密钥保留规则。页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。
 
 **Miniflux、LLM、AI News 和 Feeds Status 可在 `/admin/config` 编辑**，显示磁盘 `config.yml` 中的待生效值；**Agents 在本页只读展示**（固定 `summary` / `translate`），显示当前进程启动时加载的配置，可通过独立的 `/admin/config/agents` 页面编辑磁盘中的待生效值。
 
@@ -103,6 +120,8 @@ services:
         restart: always
         environment:
             TZ: Asia/Shanghai
+            # Required only when admin.enabled is true and admin.password is not set.
+            # MINIFLUX_AI_ADMIN_PASSWORD: change-this-password
         volumes:
             - ./config.yml:/app/config.yml
             # - ./entries.json:/app/entries.json # Provide persistent for AI news
