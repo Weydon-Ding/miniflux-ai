@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>配置概览 · miniflux-ai</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#config-content">跳到配置内容</a>
+  <header class="page-header">
+    <p class="brand">miniflux-ai <span>配置参考</span></p>
+    <h1>配置概览</h1>
+    <p>只读 · 当前进程启动时加载的配置。密钥仅显示设置状态，不显示明文。</p>
+    <aside class="notice" aria-label="配置生效说明">
+      <strong>更改配置后记得重启</strong>
+      <p>保存配置后，需要重启 miniflux-ai 容器或进程，配置才会完全生效。</p>
+      <p>本页不提供编辑或保存功能。请在 config.yml 中修改配置。</p>
+    </aside>
+  </header>
+  <div class="page-layout">
+    <nav class="section-nav" aria-label="配置分组">
+      <p>配置分组</p>
+      {% for section in sections %}
+      <a href="#{{ section.id }}">{{ section.title }}</a>
+      {% endfor %}
+    </nav>
+  <main id="config-content">
+    {% for section in sections %}
+    <section id="{{ section.id }}" aria-labelledby="{{ section.id }}-heading">
+      <h2 id="{{ section.id }}-heading">{{ section.title }}</h2>
+      <dl>
+        {% for label, key, value in section.fields %}
+        <div class="field">
+          <dt>{{ label }} <code>{{ key }}</code></dt>
+          <dd>{{ value }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endfor %}
+  </main>
+  </div>
+</body>
+</html>

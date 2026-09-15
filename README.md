@@ -61,6 +61,23 @@ The repository includes a template configuration file: `config.sample.yml`. Modi
 - **Agents**: Define each agent's prompt, allow_list/deny_list filters, and output style（`style_block` parameter controls whether the output is formatted as a code block in Markdown）.
 
 
+### 只读配置概览
+
+配置页面默认关闭。需要使用时，在 `config.yml` 中显式启用，并为运行进程设置管理员密码环境变量：
+
+```yaml
+admin:
+  enabled: true
+  username: admin
+  password_env: MINIFLUX_AI_ADMIN_PASSWORD
+```
+
+重启后，在浏览器中访问现有 Flask 服务的 `/admin/config`，使用 `admin.username` 和密码通过 Basic Auth 认证。密码优先读取 `admin.password_env` 指定的环境变量，也可以使用 `admin.password` 作为回退。通过反向代理访问时应启用 HTTPS，避免明文传输认证凭据。
+
+页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示核心配置，Agents 展示固定的 `summary` 和 `translate`。三个密钥字段（Miniflux API key、webhook secret、LLM API key）仅显示固定掩码或“未设置”，不发送明文；管理员凭据不会显示。提示词、URL 和 `llm.extra_params` 等其他配置按原值展示，请勿在其中嵌入密钥。
+
+页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。当前仅支持查看，不提供编辑或保存功能，显示的是**当前进程启动时加载的配置**。修改并保存 `config.yml` 后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面不会热加载配置。
+
 ## Docker Setup
 
 The project includes a `docker-compose.yml` file for easy deployment:
