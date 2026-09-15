@@ -61,7 +61,7 @@ The repository includes a template configuration file: `config.sample.yml`. Modi
 - **Agents**: Define each agent's prompt, allow_list/deny_list filters, and output style（`style_block` parameter controls whether the output is formatted as a code block in Markdown）.
 
 
-### 只读配置概览
+### 配置概览与 Agent 编辑
 
 配置页面默认关闭。需要使用时，在 `config.yml` 中显式启用，并为运行进程设置管理员密码环境变量：
 
@@ -76,7 +76,11 @@ admin:
 
 页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示核心配置，Agents 展示固定的 `summary` 和 `translate`。三个密钥字段（Miniflux API key、webhook secret、LLM API key）仅显示固定掩码或“未设置”，不发送明文；管理员凭据不会显示。提示词、URL 和 `llm.extra_params` 等其他配置按原值展示，请勿在其中嵌入密钥。
 
-页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。当前仅支持查看，不提供编辑或保存功能，显示的是**当前进程启动时加载的配置**。修改并保存 `config.yml` 后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面不会热加载配置。
+页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。`/admin/config` 保持只读，显示的是**当前进程启动时加载的配置**；刷新概览不会热加载配置。
+
+从 Agents 分组的编辑入口进入 `/admin/config/agents`，可以编辑固定 `summary` 和 `translate` 的 `title`、`prompt`、`style_block`、`allow_list` 和 `deny_list`。编辑页读取磁盘上的 `config.yml`，allow/deny list 为一行一个 pattern，保存时忽略空行及行首尾空白，留空可清空列表；不会改变原有过滤规则。页面不支持新增或删除任意 agent，已有自定义 agent 会保留。
+
+保存前会校验配置，并将旧文件备份到 `config.yml.bak`（下次成功备份会覆盖该备份），尽量保留 YAML 注释、顺序和未知配置。校验或写入失败会显示错误并保留已填内容。**保存后需要重启 miniflux-ai 容器或进程，配置才会完全生效**，不会热更新运行中的 agents。编辑请求同样受 Basic Auth 和 CSRF token 保护；重启后请刷新编辑页再提交。
 
 ## Docker Setup
 
