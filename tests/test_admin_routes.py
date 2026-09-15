@@ -1,3 +1,4 @@
+import base64
 import importlib
 import os
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 class AdminRouteTestCase(unittest.TestCase):
     def setUp(self):
         self.old_cwd = os.getcwd()
+        self.old_admin_password = os.environ.pop("MINIFLUX_AI_ADMIN_PASSWORD", None)
         self.tmpdir = tempfile.TemporaryDirectory()
         os.chdir(self.tmpdir.name)
         self._clear_app_modules()
@@ -16,6 +18,8 @@ class AdminRouteTestCase(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.old_cwd)
         self.tmpdir.cleanup()
+        if self.old_admin_password is not None:
+            os.environ["MINIFLUX_AI_ADMIN_PASSWORD"] = self.old_admin_password
         self._clear_app_modules()
 
     def _clear_app_modules(self):
@@ -50,6 +54,22 @@ class AdminRouteTestCase(unittest.TestCase):
     def route_paths(self, app):
         return {rule.rule for rule in app.url_map.iter_rules()}
 
+    def basic_auth_header(self, username, password):
+        token = base64.b64encode(
+            f"{username}:{password}".encode("utf-8")
+        ).decode("ascii")
+        return {"Authorization": f"Basic {token}"}
+
+    def import_admin_app(self):
+        return self.import_app(
+            self.config_with(
+                "admin:\n"
+                "  enabled: true\n"
+                "  username: operator\n"
+                "  password: test-admin-password\n"
+            )
+        )
+
     def test_admin_config_route_is_not_registered_by_default(self):
         app = self.import_app(self.config_with(""))
 
@@ -57,11 +77,30 @@ class AdminRouteTestCase(unittest.TestCase):
         response = app.test_client().get("/admin/config")
         self.assertEqual(response.status_code, 404)
 
-    def test_admin_config_route_is_registered_when_admin_is_enabled(self):
-        app = self.import_app(self.config_with("admin:\n  enabled: true\n"))
+    def test_admin_config_route_requires_basic_auth_when_admin_is_enabled(self):
+        app = self.import_admin_app()
 
         self.assertIn("/admin/config", self.route_paths(app))
         response = app.test_client().get("/admin/config")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["WWW-Authenticate"], 'Basic realm="miniflux-ai admin"')
+
+    def test_admin_config_route_rejects_wrong_basic_auth_credentials(self):
+        app = self.import_admin_app()
+
+        response = app.test_client().get(
+            "/admin/config",
+            headers=self.basic_auth_header("operator", "wrong-password"),
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_admin_config_route_accepts_correct_basic_auth_credentials(self):
+        app = self.import_admin_app()
+
+        response = app.test_client().get(
+            "/admin/config",
+            headers=self.basic_auth_header("operator", "test-admin-password"),
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"miniflux-ai admin configuration", response.data)
 
