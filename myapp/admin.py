@@ -8,7 +8,7 @@ from yaml import safe_dump
 
 from common.config_editor import (
     ConfigEditor, ConfigEditorError, ConfigLoadError, ConfigValidationError, FIELD_ORDER, INT_FIELDS,
-    REQUIRED_STRING_FIELDS, SECRET_FIELDS,
+    LLM_PROVIDERS, REQUIRED_STRING_FIELDS, SECRET_FIELDS,
 )
 
 
@@ -164,6 +164,6 @@ def register_admin_routes(app, config):
             saved=request.method == 'GET' and request.args.get('saved') == '1', errors=errors,
             form=form, editable_fields=_EDITABLE_FIELDS, save_error=save_error,
             secret_fields=SECRET_FIELDS, int_fields=INT_FIELDS,
-            required_fields=REQUIRED_STRING_FIELDS,
+            required_fields=REQUIRED_STRING_FIELDS, providers=LLM_PROVIDERS,
             csrf_token=signer.dumps({'username': config.admin_username, 'nonce': token_urlsafe(32)}),
         ), status

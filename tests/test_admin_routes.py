@@ -224,7 +224,10 @@ class AdminRouteTestCase(unittest.TestCase):
                 self.assertIn('未保存', html)
                 self.assertIn(f'id="{field}-error"', html)
                 self.assertNotIn('<script>', html)
-                fields = ConfigFieldsParser(html).fields
+                parsed = ConfigFieldsParser(html)
+                fields = parsed.fields
+                if value == 'abc':
+                    self.assertEqual(parsed.controls[field][1]['type'], 'text')
                 self.assertEqual(fields[field], value)
                 self.assertEqual(fields['llm.model'], data['llm.model'])
                 for secret_field in ('miniflux.api_key', 'miniflux.webhook_secret', 'llm.api_key'):

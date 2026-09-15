@@ -49,8 +49,8 @@
           <dd class="editable">
             {% if key == 'llm.provider' %}
             <select id="{{ key }}" name="{{ key }}"{% if key in errors %} aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}>
-              {% if form[key] not in ('openai', 'gemini') %}<option value="{{ form[key] }}" selected disabled>请选择 openai 或 gemini（当前值：{{ form[key] }}）</option>{% endif %}
-              {% for provider in ('openai', 'gemini') %}
+              {% if form[key] not in providers %}<option value="{{ form[key] }}" selected disabled>请选择 openai 或 gemini（当前值：{{ form[key] }}）</option>{% endif %}
+              {% for provider in providers %}
               <option value="{{ provider }}"{% if form[key] == provider %} selected{% endif %}>{{ provider }}</option>
               {% endfor %}
             </select>
@@ -59,9 +59,9 @@
             <small>请输入 YAML mapping，例如 temperature: 0.5。留空保存为 {}。请勿在这里嵌入密钥。</small>
             {% else %}
             <input id="{{ key }}" name="{{ key }}" value="{{ form[key] }}"
-                   type="{{ 'password' if key in secret_fields else 'number' if key in int_fields else 'text' }}"
+                   type="{{ 'password' if key in secret_fields else 'number' if key in int_fields and key not in errors else 'text' }}"
                    {% if key in errors %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}
-                   {% if key in int_fields %}min="{{ int_fields[key] }}" step="1"{% endif %}
+                   {% if key in int_fields %}{% if key in errors %}inputmode="numeric"{% else %}min="{{ int_fields[key] }}" step="1"{% endif %}{% endif %}
                    {% if key in required_fields %}required{% endif %}
                    {% if key in secret_fields %}autocomplete="new-password"{% endif %}>
             {% if key in secret_fields %}<small>{{ '********（已设置）' if form[key] else '未设置' }}；留空或保留星号不更改。</small>{% endif %}

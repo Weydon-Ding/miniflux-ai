@@ -12,6 +12,7 @@ from yaml import safe_load as pyyaml_safe_load
 
 
 SECRET_PLACEHOLDER = "********"
+LLM_PROVIDERS = ("openai", "gemini")
 AGENT_NAMES = ("summary", "translate")
 SECRET_FIELDS = {
     "miniflux.api_key",
@@ -376,7 +377,7 @@ class ConfigEditor:
             return None, ()
         if field in DEFAULTS and self._is_blank(value):
             return self._quote_string(DEFAULTS[field]), ()
-        if field == "llm.provider" and value not in ("openai", "gemini"):
+        if field == "llm.provider" and value not in LLM_PROVIDERS:
             return None, (FieldError(field, "choice", "Choose openai or gemini"),)
         return self._quote_string(value), ()
 
