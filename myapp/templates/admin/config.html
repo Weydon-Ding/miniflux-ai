@@ -54,7 +54,8 @@
             <option value="true" {% if form[key] == 'true' %}selected{% endif %}>启用</option>
           </select>
           {% elif key == 'ai_news.schedule' or '.prompts.' in key %}
-          <textarea id="{{ key }}" name="{{ key }}" {% if key in errors %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %} rows="{{ 4 if key == 'ai_news.schedule' else 8 }}">{{ form[key] }}</textarea>
+          <textarea id="{{ key }}" name="{{ key }}" {% if key in errors %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %} rows="{{ 4 if key == 'ai_news.schedule' else 8 }}">
+{{ form[key] }}</textarea>
           {% else %}
           <input id="{{ key }}" name="{{ key }}" {% if key in errors %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %} type="{{ 'url' if key.endswith('.url') else 'text' }}" value="{{ form[key] }}">
           {% endif %}
@@ -63,6 +64,8 @@
           <p class="field-help">一行一个 HH:MM（24 小时制），例如 07:30。留空则不定时生成。</p>
           {% elif key == 'feeds_status.schedule' %}
           <p class="field-help">单个 HH:MM（24 小时制），例如 09:00。</p>
+          {% elif key == 'feeds_status.url' %}
+          <p class="field-help">启用 Feeds Status 时必填。未配置时预填 AI News 服务地址。</p>
           {% elif '.prompts.' in key %}
           <p class="field-help">设置 AI News 生成时间后，此提示词必填。</p>
           {% endif %}

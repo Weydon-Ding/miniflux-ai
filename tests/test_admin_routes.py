@@ -65,6 +65,9 @@ class ConfigFormParser(HTMLParser):
             self.values[self.name] += data
 
     def handle_endtag(self, tag):
+        if tag == 'textarea':
+            # HTML browsers ignore the first LF immediately after <textarea>.
+            self.values[self.name] = self.values[self.name].removeprefix('\n')
         if tag in ('textarea', 'select'):
             self.name = None
             self.in_textarea = False
@@ -479,7 +482,7 @@ class AdminRouteTestCase(unittest.TestCase):
                 with self.subTest(field=field, value=value):
                     edits = dict(form, **{
                         'ai_news.url': 'https://edited.example.test',
-                        'ai_news.prompts.greeting': '</textarea><script>alert("test")</script>\n新输入',
+                        'ai_news.prompts.greeting': '\n</textarea><script>alert("test")</script>\n新输入',
                         'ai_news.prompts.summary': '待保存摘要',
                         'ai_news.prompts.summary_block': '待保存分类',
                         field: value,
@@ -634,6 +637,31 @@ class AdminRouteTestCase(unittest.TestCase):
         self.assertIn('必填', html)
         self.assertEqual(ConfigFormParser(html).values, form)
         self.assertEqual(Path('config.yml').read_bytes(), original)
+        self.assertFalse(Path('config.yml.bak').exists())
+
+    def test_enabled_status_rejects_cleared_url_instead_of_saving_null(self):
+        app = self.import_admin_app()
+        path = Path('config.yml')
+        path.write_text(path.read_text(encoding='utf-8') + dedent('''\
+            ai_news:
+              url: https://news.example.test
+            feeds_status:
+              enabled: true
+              schedule: '09:00'
+            '''), encoding='utf-8')
+        client = app.test_client()
+        headers = self.basic_auth_header('operator', 'test-admin-password')
+        form = ConfigFormParser(client.get('/admin/config', headers=headers).get_data(as_text=True)).values
+        self.assertEqual(form['feeds_status.url'], 'https://news.example.test')
+        form['feeds_status.url'] = ''
+        original = path.read_bytes()
+
+        response = client.post('/admin/config', headers=headers, data=form)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('id="feeds_status.url-error"', response.get_data(as_text=True))
+        self.assertEqual(ConfigFormParser(response.get_data(as_text=True)).values, form)
+        self.assertEqual(path.read_bytes(), original)
         self.assertFalse(Path('config.yml.bak').exists())
 
     def test_admin_config_route_is_not_registered_for_string_false(self):

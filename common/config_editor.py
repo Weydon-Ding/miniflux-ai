@@ -235,9 +235,10 @@ class ConfigEditor:
                     errors.append(FieldError(field, "required", "This field is required when ai_news.schedule is configured"))
 
         if self._is_feeds_status_enabled(values, document):
-            value = values.get("feeds_status.url")
-            if self._is_blank(value):
-                value = self._feeds_status_url_default(document)
+            fallback_url = values.get("ai_news.url", self._get_path(document, "ai_news.url"))
+            value = values.get(
+                "feeds_status.url", self._get_path(document, "feeds_status.url", fallback_url),
+            )
             if self._is_blank(value):
                 errors.append(FieldError("feeds_status.url", "required", "This field is required when feeds_status.enabled is true"))
             schedule = values.get(
