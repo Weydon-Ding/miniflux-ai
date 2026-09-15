@@ -2,13 +2,12 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass
-from io import StringIO
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
-from yaml import safe_load as pyyaml_safe_load
+from yaml import safe_dump as pyyaml_safe_dump, safe_load as pyyaml_safe_load
 
 
 SECRET_PLACEHOLDER = "********"
@@ -493,15 +492,23 @@ class ConfigEditor:
     def _dump_mapping(self, value):
         if not value:
             return ""
-        stream = StringIO()
-        self.snippet_yaml.dump(self._to_plain_data(value), stream)
-        return stream.getvalue().strip()
+        return pyyaml_safe_dump(
+            self._to_plain_data(value), allow_unicode=True, sort_keys=False,
+        ).strip()
 
     def _to_plain_data(self, value):
         if isinstance(value, dict):
-            return {key: self._to_plain_data(item) for key, item in value.items()}
+            return {self._to_plain_data(key): self._to_plain_data(item) for key, item in value.items()}
         if isinstance(value, list):
             return [self._to_plain_data(item) for item in value]
+        if isinstance(value, bool):
+            return bool(value)
+        if isinstance(value, int):
+            return int(value)
+        if isinstance(value, float):
+            return float(value)
+        if isinstance(value, str):
+            return str(value)
         return value
 
     def _quote_string(self, value):
@@ -545,7 +552,7 @@ class ConfigEditor:
         return False
 
     def _valid_time(self, value):
-        if len(value) != 5 or value[2] != ":":
+        if len(value) != 5 or value[2] != ":" or not value.isascii():
             return False
         hour = value[:2]
         minute = value[3:]

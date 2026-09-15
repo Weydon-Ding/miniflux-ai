@@ -1,10 +1,20 @@
 from hmac import compare_digest
+from secrets import token_urlsafe
 
-from flask import Response, render_template, request
+from flask import Response, redirect, render_template, request, url_for
 from yaml import safe_dump
+
+from common.config_editor import (
+    ConfigBackupError, ConfigEditor, ConfigLoadError, ConfigSaveError, ConfigValidationError,
+)
 
 
 _ADMIN_REALM = 'miniflux-ai admin'
+_EDITABLE_FIELDS = {
+    'ai_news.url', 'ai_news.schedule',
+    'ai_news.prompts.greeting', 'ai_news.prompts.summary', 'ai_news.prompts.summary_block',
+    'feeds_status.enabled', 'feeds_status.url', 'feeds_status.schedule',
+}
 
 
 def _unauthorized_response():
@@ -93,10 +103,61 @@ def _config_sections(config):
     return sections
 
 
+def _validation_message(error):
+    if error.code == 'invalid_time':
+        return ('请一行填写一个 HH:MM 时间（00:00–23:59）。' if error.field == 'ai_news.schedule'
+                else '请填写单个 HH:MM 时间（00:00–23:59）。')
+    if error.code == 'required':
+        return '此配置项必填；请补全后重试。'
+    return '配置值无效，请检查格式后重试。'
+
+
 def register_admin_routes(app, config):
-    @app.route('/admin/config', methods=['GET'])
+    csrf_token = token_urlsafe(32)
+
+    @app.after_request
+    def protect_admin_response(response):
+        if request.endpoint == 'admin_config':
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['X-Frame-Options'] = 'DENY'
+        return response
+
+    @app.errorhandler(ConfigLoadError)
+    def config_load_failed(error):
+        return Response('无法读取配置，请检查 config.yml 的格式和读取权限后刷新。', 500, mimetype='text/plain')
+
+    @app.route('/admin/config', methods=['GET', 'POST'])
     def admin_config():
         if not _is_authorized(config):
             return _unauthorized_response()
 
-        return render_template('admin/config.html', sections=_config_sections(config))
+        editor = ConfigEditor()
+        errors = {}
+        save_error = None
+        status = 200
+        if request.method == 'POST':
+            submitted_token = request.form.get('csrf_token', '')
+            if not compare_digest(submitted_token.encode(), csrf_token.encode()):
+                return Response('页面校验失败，请刷新后重试。', 403, mimetype='text/plain')
+            if (set(request.form) != _EDITABLE_FIELDS | {'csrf_token'}
+                    or any(len(values) != 1 for _, values in request.form.lists())):
+                return Response('表单字段不完整或不受支持，请刷新后重试。', 400, mimetype='text/plain')
+            form = {key: request.form[key] for key in _EDITABLE_FIELDS}
+            try:
+                editor.save(form)
+            except ConfigValidationError as exc:
+                errors = {error.field: _validation_message(error) for error in exc.errors}
+                status = 400
+            except (ConfigBackupError, ConfigSaveError):
+                save_error = '无法保存配置，原配置未更改。请检查配置目录及备份文件的写入权限后重试。'
+                status = 500
+            else:
+                return redirect(url_for('admin_config', saved='1'), code=303)
+        else:
+            form = editor.render_form()
+
+        return render_template(
+            'admin/config.html', sections=_config_sections(config),
+            form=form, csrf_token=csrf_token, errors=errors, save_error=save_error,
+            saved=request.method == 'GET' and request.args.get('saved') == '1',
+        ), status

@@ -61,7 +61,7 @@ The repository includes a template configuration file: `config.sample.yml`. Modi
 - **Agents**: Define each agent's prompt, allow_list/deny_list filters, and output style（`style_block` parameter controls whether the output is formatted as a code block in Markdown）.
 
 
-### 只读配置概览
+### 配置管理页面
 
 配置页面默认关闭。需要使用时，在 `config.yml` 中显式启用，并为运行进程设置管理员密码环境变量：
 
@@ -76,7 +76,15 @@ admin:
 
 页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示核心配置，Agents 展示固定的 `summary` 和 `translate`。三个密钥字段（Miniflux API key、webhook secret、LLM API key）仅显示固定掩码或“未设置”，不发送明文；管理员凭据不会显示。提示词、URL 和 `llm.extra_params` 等其他配置按原值展示，请勿在其中嵌入密钥。
 
-页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。当前仅支持查看，不提供编辑或保存功能，显示的是**当前进程启动时加载的配置**。修改并保存 `config.yml` 后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面不会热加载配置。
+页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。**Miniflux、LLM、Agents 目前只读**，显示当前进程启动时加载的配置；**AI News 和 Feeds Status 可编辑**，显示磁盘 `config.yml` 中的待生效值：
+
+- AI News：服务地址、生成时间（每行一个 `HH:MM`，例如 `07:30` 和 `18:00`），以及问候、摘要、分类三个提示词。生成时间留空可取消定时生成；设置生成时间后，三个提示词均必填。
+- Feeds Status：启用/禁用、服务地址及单个检查时间（`HH:MM`，例如 `09:00`）。
+- 时间采用 24 小时制，范围为 `00:00`–`23:59`。校验失败时显示错误并保留输入，不覆盖原配置或备份。其他已有必填配置缺失时，也会提示；只读项需要先在 `config.yml` 中补全。
+
+点击“保存配置”后，后端复用配置编辑核心校验，在覆盖前将旧配置备份到同目录的 `config.yml.bak`，并尽量保留 YAML 注释和顺序。进程需要拥有配置目录、配置文件和备份文件的写入权限；容器部署建议挂载可写目录，单文件 bind mount 可能阻止原子替换。备份包含密钥，请与原配置一样妥善保护。
+
+保存接口同样要求 Basic Auth，并检查页面携带的 CSRF token；进程重启后请刷新旧页面再保存。保存只写入配置文件，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面可查看待生效值，但不会热加载运行配置。
 
 ## Docker Setup
 
