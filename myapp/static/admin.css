@@ -71,6 +71,11 @@ code, dd { font-family: Consolas, "Microsoft YaHei", monospace; font-size: 13px;
 dt code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
 dd { margin: 0; white-space: pre-wrap; line-height: 1.8; }
 
+.agent-editor .agent-field { padding: 18px 24px; }
+.agent-editor .agent-field + .agent-field { border-top: 1px solid var(--border); }
+.agent-editor label { display: block; margin-bottom: 8px; font-weight: 600; }
+.agent-editor label code { display: block; font-weight: 400; color: var(--muted); }
+.agent-editor .agent-field p { margin: 4px 0 8px; font-size: 14px; }
 .editable { white-space: normal; }
 .edit-field label { font-size: 14px; font-weight: 600; }
 .edit-field label code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
@@ -85,6 +90,9 @@ input:not([type="hidden"]), textarea, select {
   background: var(--surface);
   color: var(--text);
 }
+.agent-editor textarea { min-height: 100px; }
+.agent-editor .agent-errors { border-color: #a32424; }
+.agent-editor .agent-errors strong, .agent-editor .agent-error { color: #a32424; }
 textarea { resize: vertical; font-family: Consolas, "Microsoft YaHei", monospace; font-size: 14px; line-height: 1.7; }
 input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
   outline: 3px solid var(--accent);

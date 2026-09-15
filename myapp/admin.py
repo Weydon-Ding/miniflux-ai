@@ -13,6 +13,13 @@ from common.config_editor import (
 
 
 _ADMIN_REALM = 'miniflux-ai admin'
+AGENT_FIELDS = (
+    ('title', '标题'),
+    ('prompt', '提示词'),
+    ('style_block', '引用块样式'),
+    ('allow_list', '允许列表'),
+    ('deny_list', '排除列表'),
+)
 _EDITABLE_FIELDS = {
     field for field in FIELD_ORDER
     if field.startswith(('miniflux.', 'llm.', 'ai_news.', 'feeds_status.'))
@@ -61,10 +68,7 @@ def _config_sections(config):
     agent_fields = []
     for name in ('summary', 'translate'):
         agent = agents.get(name) or {}
-        for key, label in (
-            ('title', '标题'), ('prompt', '提示词'), ('style_block', '引用块样式'),
-            ('allow_list', '允许列表'), ('deny_list', '排除列表'),
-        ):
+        for key, label in AGENT_FIELDS:
             agent_fields.append((f'{name} · {label}', f'agents.{name}.{key}', agent.get(key)))
 
     prompts = config.ai_news_prompts or {}

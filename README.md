@@ -76,15 +76,16 @@ admin:
 
 页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示配置，使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。
 
-**Miniflux、LLM、AI News 和 Feeds Status 可编辑**，显示磁盘 `config.yml` 中的待生效值；**Agents 只读**（固定 `summary` / `translate`），显示当前进程启动时加载的配置。
+**Miniflux、LLM、AI News 和 Feeds Status 可在 `/admin/config` 编辑**，显示磁盘 `config.yml` 中的待生效值；**Agents 在本页只读展示**（固定 `summary` / `translate`），显示当前进程启动时加载的配置，可通过独立的 `/admin/config/agents` 页面编辑磁盘中的待生效值。
 
 - **Miniflux / LLM**：可修改 Miniflux 地址、API key、webhook secret、轮询间隔，以及 LLM provider（`openai` / `gemini`）、地址、API key、model、内容长度上限、timeout、max workers、RPM 和 `extra_params`。
 - **AI News**：服务地址、生成时间（每行一个 `HH:MM`，例如 `07:30` 和 `18:00`），以及问候、摘要、分类三个提示词。生成时间留空可取消定时生成；设置生成时间后，三个提示词均必填。
 - **Feeds Status**：启用/禁用、服务地址及单个检查时间（`HH:MM`，例如 `09:00`）。启用时服务地址必填；未配置时页面会预填 AI News 服务地址。
+- **Agents**：从 Agents 分组的编辑入口进入 `/admin/config/agents`，可以编辑固定 `summary` 和 `translate` 的 `title`、`prompt`、`style_block`、`allow_list` 和 `deny_list`。allow/deny list 为一行一个 pattern，保存时忽略空行及行首尾空白，留空可清空列表；不会改变原有过滤规则。页面不支持新增或删除任意 agent，已有自定义 agent 和未知配置会保留。此独立页面仅保存 Agent 配置，同样先校验并备份到 `config.yml.bak`，失败时保留已填内容。请求受 Basic Auth 和 CSRF token 保护；重启后请刷新编辑页再提交。
 - **密钥保留**：三个密钥字段仅回填 `********` 或空值，不发送明文；留空或保持星号会保留原密钥，输入新值才替换。管理员凭据不会显示。URL、提示词和 `llm.extra_params` 等其他字段按原值展示，请勿在其中嵌入密钥。
 - **参数校验**：`llm.extra_params` 输入 YAML mapping（如 `temperature: 0.5`），不能是列表或标量，留空保存为 `{}`。数字须满足页面的最小值；轮询间隔留空使用自动间隔，内容长度上限留空不限制；timeout / max workers / RPM 留空分别使用 60 / 4 / 1000。时间采用 24 小时制，范围为 `00:00`–`23:59`。保存复用配置核心的完整必填校验；如果错误指向只读字段，请先在 `config.yml` 修正。
 - **错误处理**：无效输入不会写入原配置或备份，页面保留普通字段以便修正。出错后新密钥不会回显，如需更换必须重新输入。保存接口同样要求 Basic Auth，并检查限时 CSRF token；页面打开超过一小时，请刷新后重新编辑。
-- **备份与生效**：点击“保存配置”会保存上述四组可编辑字段；有效保存先将旧配置备份到同目录的 `config.yml.bak`（覆盖上一份备份），再尽量保留 YAML 注释和顺序写回配置。备份包含密钥，请与原配置一样妥善保护。保存成功后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面可查看待生效值，但保存和刷新页面都不会热加载运行时配置。
+- **备份与生效**：在 `/admin/config` 点击“保存配置”会保存 Miniflux、LLM、AI News 和 Feeds Status 四组字段；有效保存先将旧配置备份到同目录的 `config.yml.bak`（覆盖上一份备份），再尽量保留 YAML 注释和顺序写回配置。备份包含密钥，请与原配置一样妥善保护。保存成功后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面可查看待生效值，但保存和刷新页面都不会热加载运行时配置。
 
 配置目录必须可写，且允许创建备份、临时文件及原子替换 `config.yml`。下面容器示例使用的单文件 bind mount（`./config.yml:/app/config.yml`）可能阻止原子替换；此时网页保存会失败并保留原配置。使用网页编辑时，应将配置放在可写、支持原子替换的目录中；不要通过删除备份或改为非原子写入绕过错误。
 

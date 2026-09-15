@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>编辑 Agents · miniflux-ai</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body class="agent-editor">
+  <a class="skip-link" href="#agent-form">跳到编辑表单</a>
+  <header class="page-header">
+    <p class="brand">miniflux-ai <span>Agent 配置</span></p>
+    <h1>编辑 Agents</h1>
+    <p><a href="{{ url_for('admin_config') }}">返回配置管理页面</a></p>
+    <aside class="notice" aria-label="配置生效说明">
+      <strong>保存后需要重启</strong>
+      <p>表单读取磁盘上的 config.yml；保存配置后，需要重启 miniflux-ai 容器或进程，配置才会完全生效。</p>
+      <p>仅编辑 summary 和 translate，不支持新增或删除 agent。保存前会备份旧配置到 config.yml.bak。</p>
+    </aside>
+  </header>
+  <main>
+    {% if saved %}
+    <p class="notice" role="status">Agent 配置已保存，旧配置已备份。需要重启 miniflux-ai 容器或进程才会完全生效。</p>
+    {% endif %}
+    {% if warning %}
+    <p class="notice" role="alert">{{ warning }}</p>
+    {% endif %}
+    {% if errors %}
+    <div class="notice agent-errors" role="alert">
+      <strong>保存失败，请检查以下配置。</strong>
+      <ul>
+        {% for field, message in errors.items() %}
+        <li><code>{{ field }}</code>：{{ message }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <form id="agent-form" method="post" action="{{ url_for('admin_agents') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% for name in agent_names %}
+      <section aria-labelledby="{{ name }}-heading">
+        <h2 id="{{ name }}-heading">{{ name }}</h2>
+        {% for field, label in agent_fields %}
+        {% set key = 'agents.' ~ name ~ '.' ~ field %}
+        {% set error_attrs %}{% if key in errors %} aria-invalid="true" aria-errormessage="{{ key }}-error"{% endif %}{% endset %}
+        <div class="agent-field">
+          <label for="{{ key }}">{{ label }} <code>{{ key }}</code></label>
+          {% if key in errors %}
+          <p class="agent-error" id="{{ key }}-error">{{ errors[key] }}</p>
+          {% endif %}
+          {% if field == 'title' %}
+          <input id="{{ key }}" name="{{ key }}"{{ error_attrs }} type="text" value="{{ values[key] }}" required>
+          {% elif field == 'style_block' %}
+          <select id="{{ key }}" name="{{ key }}"{{ error_attrs }}>
+            {% if values[key] not in ('true', 'false') %}
+            <option value="{{ values[key] }}" selected>无效值：{{ values[key] }}</option>
+            {% endif %}
+            <option value="true"{% if values[key] == 'true' %} selected{% endif %}>true · 启用</option>
+            <option value="false"{% if values[key] == 'false' %} selected{% endif %}>false · 关闭</option>
+          </select>
+          {% else %}
+          {% if field in ('allow_list', 'deny_list') %}
+          <p id="{{ key }}-help">一行一个 pattern；忽略空行及行首尾空白，留空表示清空列表。</p>
+          {% endif %}
+          <textarea id="{{ key }}" name="{{ key }}"{{ error_attrs }} rows="{{ 10 if field == 'prompt' else 4 }}"{% if field == 'prompt' %} required{% else %} aria-describedby="{{ key }}-help"{% endif %}>
+{{ values[key] }}</textarea>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+      {% endfor %}
+      <button type="submit">保存 Agent 配置</button>
+    </form>
+  </main>
+</body>
+</html>
