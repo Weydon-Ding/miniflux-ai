@@ -11,11 +11,11 @@
   <header class="page-header">
     <p class="brand">miniflux-ai <span>配置参考</span></p>
     <h1>配置概览</h1>
-    <p>只读 · 当前进程启动时加载的配置。密钥仅显示设置状态，不显示明文。</p>
+    <p>Miniflux / LLM：编辑磁盘中的 config.yml。其他分组：只读，显示当前进程启动时加载的配置。</p>
     <aside class="notice" aria-label="配置生效说明">
       <strong>更改配置后记得重启</strong>
       <p>保存配置后，需要重启 miniflux-ai 容器或进程，配置才会完全生效。</p>
-      <p>本页不提供编辑或保存功能。请在 config.yml 中修改配置。</p>
+      <p>保存前会备份到 config.yml.bak。密钥留空或保持星号表示保留原值，不显示明文。</p>
     </aside>
   </header>
   <div class="page-layout">
@@ -26,19 +26,61 @@
       {% endfor %}
     </nav>
   <main id="config-content">
+    {% if saved %}
+    <aside class="notice success" role="status">保存成功，旧配置已备份到 config.yml.bak。需要重启 miniflux-ai 容器或进程，配置才会完全生效。</aside>
+    {% endif %}
+    {% if errors or save_error %}
+    <aside class="notice error" role="alert">
+      <strong>{{ save_error or '配置未保存，请修正以下错误。' }}</strong>
+      <p>为保护密钥，新输入的密钥不会回显；如需更换，请重新输入。</p>
+      <ul>{% for key, message in errors.items() %}<li><a href="#{{ key }}">{{ key }}</a>：{{ message }}</li>{% endfor %}</ul>
+    </aside>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_config') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     {% for section in sections %}
     <section id="{{ section.id }}" aria-labelledby="{{ section.id }}-heading">
       <h2 id="{{ section.id }}-heading">{{ section.title }}</h2>
       <dl>
         {% for label, key, value in section.fields %}
         <div class="field">
+          {% if key in editable_fields %}
+          <dt><label for="{{ key }}">{{ label }}</label> <code>{{ key }}</code></dt>
+          <dd class="editable">
+            {% if key == 'llm.provider' %}
+            <select id="{{ key }}" name="{{ key }}"{% if key in errors %} aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}>
+              {% if form[key] not in providers %}<option value="{{ form[key] }}" selected disabled>请选择 openai 或 gemini（当前值：{{ form[key] }}）</option>{% endif %}
+              {% for provider in providers %}
+              <option value="{{ provider }}"{% if form[key] == provider %} selected{% endif %}>{{ provider }}</option>
+              {% endfor %}
+            </select>
+            {% elif key == 'llm.extra_params' %}
+            <textarea id="{{ key }}" name="{{ key }}" rows="8" spellcheck="false"{% if key in errors %} aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}>{{ form[key] }}</textarea>
+            <small>请输入 YAML mapping，例如 temperature: 0.5。留空保存为 {}。请勿在这里嵌入密钥。</small>
+            {% else %}
+            <input id="{{ key }}" name="{{ key }}" value="{{ form[key] }}"
+                   type="{{ 'password' if key in secret_fields else 'number' if key in int_fields and key not in errors else 'text' }}"
+                   {% if key in errors %}aria-invalid="true" aria-describedby="{{ key }}-error"{% endif %}
+                   {% if key in int_fields %}{% if key in errors %}inputmode="numeric"{% else %}min="{{ int_fields[key] }}" step="1"{% endif %}{% endif %}
+                   {% if key in required_fields %}required{% endif %}
+                   {% if key in secret_fields %}autocomplete="new-password"{% endif %}>
+            {% if key in secret_fields %}<small>{{ '********（已设置）' if form[key] else '未设置' }}；留空或保留星号不更改。</small>{% endif %}
+            {% if key == 'miniflux.schedule_interval' %}<small>单位：分钟。留空使用自动间隔。</small>{% endif %}
+            {% if key == 'llm.max_length' %}<small>留空不限制内容长度。</small>{% endif %}
+            {% endif %}
+            {% if key in errors %}<small class="field-error" id="{{ key }}-error">{{ errors[key] }}</small>{% endif %}
+          </dd>
+          {% else %}
           <dt>{{ label }} <code>{{ key }}</code></dt>
           <dd>{{ value }}</dd>
+          {% endif %}
         </div>
         {% endfor %}
       </dl>
     </section>
+    {% if section.id == 'llm' %}<button type="submit">保存 Miniflux / LLM 配置</button>{% endif %}
     {% endfor %}
+    </form>
   </main>
   </div>
 </body>

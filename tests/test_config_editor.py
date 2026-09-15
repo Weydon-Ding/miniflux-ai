@@ -81,6 +81,21 @@ class ConfigEditorTestCase(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
+    def test_provider_accepts_supported_modes_and_rejects_unknown_mode_without_writing(self):
+        editor = self.config_editor.ConfigEditor(self.config_path)
+        original = self.config_path.read_bytes()
+        for provider in ('openai', 'gemini', ''):
+            with self.subTest(provider=provider):
+                result = editor.validate({'llm.provider': provider})
+                self.assertTrue(result.valid, result.errors)
+                self.assertEqual(result.values['llm.provider'], provider or 'openai')
+        with self.assertRaises(self.config_editor.ConfigValidationError) as raised:
+            editor.save({'llm.provider': 'unsupported'})
+        self.assertEqual([(error.field, error.code) for error in raised.exception.errors],
+                         [('llm.provider', 'choice')])
+        self.assertEqual(self.config_path.read_bytes(), original)
+        self.assertFalse(editor.backup_path.exists())
+
     def test_render_form_masks_existing_secrets(self):
         editor = self.config_editor.ConfigEditor(self.config_path)
 

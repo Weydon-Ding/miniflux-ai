@@ -12,6 +12,7 @@ from yaml import safe_load as pyyaml_safe_load
 
 
 SECRET_PLACEHOLDER = "********"
+LLM_PROVIDERS = ("openai", "gemini")
 AGENT_NAMES = ("summary", "translate")
 SECRET_FIELDS = {
     "miniflux.api_key",
@@ -376,6 +377,8 @@ class ConfigEditor:
             return None, ()
         if field in DEFAULTS and self._is_blank(value):
             return self._quote_string(DEFAULTS[field]), ()
+        if field == "llm.provider" and value not in LLM_PROVIDERS:
+            return None, (FieldError(field, "choice", "Choose openai or gemini"),)
         return self._quote_string(value), ()
 
     def _parse_int(self, field, raw_value):
@@ -499,9 +502,12 @@ class ConfigEditor:
 
     def _to_plain_data(self, value):
         if isinstance(value, dict):
-            return {key: self._to_plain_data(item) for key, item in value.items()}
+            return {self._to_plain_data(key): self._to_plain_data(item) for key, item in value.items()}
         if isinstance(value, list):
             return [self._to_plain_data(item) for item in value]
+        for scalar_type in (str, bool, int, float):
+            if isinstance(value, scalar_type):
+                return scalar_type(value)
         return value
 
     def _quote_string(self, value):

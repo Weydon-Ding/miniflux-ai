@@ -1,10 +1,19 @@
 from hmac import compare_digest
+from pathlib import Path
+from secrets import token_urlsafe
 
-from flask import Response, render_template, request
+from itsdangerous import BadData, URLSafeTimedSerializer
+from flask import Response, redirect, render_template, request, url_for
 from yaml import safe_dump
+
+from common.config_editor import (
+    ConfigEditor, ConfigEditorError, ConfigLoadError, ConfigValidationError, FIELD_ORDER, INT_FIELDS,
+    LLM_PROVIDERS, REQUIRED_STRING_FIELDS, SECRET_FIELDS,
+)
 
 
 _ADMIN_REALM = 'miniflux-ai admin'
+_EDITABLE_FIELDS = {field for field in FIELD_ORDER if field.startswith(('miniflux.', 'llm.'))}
 
 
 def _unauthorized_response():
@@ -94,9 +103,67 @@ def _config_sections(config):
 
 
 def register_admin_routes(app, config):
-    @app.route('/admin/config', methods=['GET'])
+    config_path = Path('config.yml').resolve()
+
+    @app.route('/admin/config', methods=['GET', 'POST'])
     def admin_config():
         if not _is_authorized(config):
             return _unauthorized_response()
 
-        return render_template('admin/config.html', sections=_config_sections(config))
+        signer = URLSafeTimedSerializer(config.admin_password, salt='admin-config-csrf')
+        if request.method == 'POST':
+            if any(key not in _EDITABLE_FIELDS | {'csrf_token'} or len(request.form.getlist(key)) != 1
+                   for key in request.form):
+                return Response('表单包含不支持或重复的字段，配置未保存。', 400, mimetype='text/plain')
+            try:
+                token = signer.loads(request.form.get('csrf_token', ''), max_age=3600)
+                if not isinstance(token, dict) or token.get('username') != config.admin_username:
+                    raise BadData('Invalid token')
+            except BadData:
+                return Response('表单已过期或无效，请刷新页面后重试。', 403, mimetype='text/plain')
+
+        editor = ConfigEditor(config_path)
+        try:
+            form = editor.render_form()
+        except Exception:
+            return Response('读取配置失败，请检查 config.yml 的内容与读取权限。', 500, mimetype='text/plain')
+        errors = {}
+        save_error = None
+        status = 200
+        if request.method == 'POST':
+            submitted = {key: value for key, value in request.form.items() if key != 'csrf_token'}
+            try:
+                editor.save(submitted)
+            except ConfigValidationError as exc:
+                status = 400
+                for error in exc.errors:
+                    if error.code == 'required':
+                        message = '此项不能为空；只读项请在 config.yml 中修正。'
+                    elif error.field in INT_FIELDS:
+                        message = f'请输入不小于 {INT_FIELDS[error.field]} 的整数。'
+                    elif error.code == 'choice':
+                        message = '请选择 openai 或 gemini。'
+                    elif error.code in ('invalid_yaml', 'invalid_mapping'):
+                        message = '请输入有效的 YAML mapping，不能使用列表或标量。'
+                    else:
+                        message = '配置值无效，请检查此项。'
+                    errors[error.field] = message
+            except ConfigLoadError:
+                status = 500
+                save_error = '读取配置失败，配置未保存。请检查 config.yml。'
+            except ConfigEditorError:
+                status = 500
+                save_error = '备份或写入失败，配置未保存。请检查配置目录的写入权限和文件挂载方式。'
+            else:
+                return redirect(url_for('admin_config', saved='1'), code=303)
+            form.update({key: value for key, value in submitted.items()
+                         if key in _EDITABLE_FIELDS and key not in SECRET_FIELDS})
+
+        return render_template(
+            'admin/config.html', sections=_config_sections(config),
+            saved=request.method == 'GET' and request.args.get('saved') == '1', errors=errors,
+            form=form, editable_fields=_EDITABLE_FIELDS, save_error=save_error,
+            secret_fields=SECRET_FIELDS, int_fields=INT_FIELDS,
+            required_fields=REQUIRED_STRING_FIELDS, providers=LLM_PROVIDERS,
+            csrf_token=signer.dumps({'username': config.admin_username, 'nonce': token_urlsafe(32)}),
+        ), status
