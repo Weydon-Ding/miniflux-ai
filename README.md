@@ -74,17 +74,19 @@ admin:
 
 重启后，在浏览器中访问现有 Flask 服务的 `/admin/config`，使用 `admin.username` 和密码通过 Basic Auth 认证。密码优先读取 `admin.password_env` 指定的环境变量，也可以使用 `admin.password` 作为回退。通过反向代理访问时应启用 HTTPS，避免明文传输认证凭据。
 
-页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示核心配置，Agents 展示固定的 `summary` 和 `translate`。三个密钥字段（Miniflux API key、webhook secret、LLM API key）仅显示固定掩码或“未设置”，不发送明文；管理员凭据不会显示。提示词、URL 和 `llm.extra_params` 等其他配置按原值展示，请勿在其中嵌入密钥。
+页面按 **Miniflux、LLM、Agents、AI News、Feeds Status** 分组展示配置，使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。
 
-页面使用 Jinja2 服务端渲染和本地 CSS，无需前端构建、JavaScript 或外部 CDN。**Miniflux、LLM、Agents 目前只读**，显示当前进程启动时加载的配置；**AI News 和 Feeds Status 可编辑**，显示磁盘 `config.yml` 中的待生效值：
+**Miniflux、LLM、AI News 和 Feeds Status 可编辑**，显示磁盘 `config.yml` 中的待生效值；**Agents 只读**（固定 `summary` / `translate`），显示当前进程启动时加载的配置。
 
-- AI News：服务地址、生成时间（每行一个 `HH:MM`，例如 `07:30` 和 `18:00`），以及问候、摘要、分类三个提示词。生成时间留空可取消定时生成；设置生成时间后，三个提示词均必填。
-- Feeds Status：启用/禁用、服务地址及单个检查时间（`HH:MM`，例如 `09:00`）。启用时服务地址必填；未配置时页面会预填 AI News 服务地址。
-- 时间采用 24 小时制，范围为 `00:00`–`23:59`。校验失败时显示错误并保留输入，不覆盖原配置或备份。其他已有必填配置缺失时，也会提示；只读项需要先在 `config.yml` 中补全。
+- **Miniflux / LLM**：可修改 Miniflux 地址、API key、webhook secret、轮询间隔，以及 LLM provider（`openai` / `gemini`）、地址、API key、model、内容长度上限、timeout、max workers、RPM 和 `extra_params`。
+- **AI News**：服务地址、生成时间（每行一个 `HH:MM`，例如 `07:30` 和 `18:00`），以及问候、摘要、分类三个提示词。生成时间留空可取消定时生成；设置生成时间后，三个提示词均必填。
+- **Feeds Status**：启用/禁用、服务地址及单个检查时间（`HH:MM`，例如 `09:00`）。启用时服务地址必填；未配置时页面会预填 AI News 服务地址。
+- **密钥保留**：三个密钥字段仅回填 `********` 或空值，不发送明文；留空或保持星号会保留原密钥，输入新值才替换。管理员凭据不会显示。URL、提示词和 `llm.extra_params` 等其他字段按原值展示，请勿在其中嵌入密钥。
+- **参数校验**：`llm.extra_params` 输入 YAML mapping（如 `temperature: 0.5`），不能是列表或标量，留空保存为 `{}`。数字须满足页面的最小值；轮询间隔留空使用自动间隔，内容长度上限留空不限制；timeout / max workers / RPM 留空分别使用 60 / 4 / 1000。时间采用 24 小时制，范围为 `00:00`–`23:59`。保存复用配置核心的完整必填校验；如果错误指向只读字段，请先在 `config.yml` 修正。
+- **错误处理**：无效输入不会写入原配置或备份，页面保留普通字段以便修正。出错后新密钥不会回显，如需更换必须重新输入。保存接口同样要求 Basic Auth，并检查限时 CSRF token；页面打开超过一小时，请刷新后重新编辑。
+- **备份与生效**：点击“保存配置”会保存上述四组可编辑字段；有效保存先将旧配置备份到同目录的 `config.yml.bak`（覆盖上一份备份），再尽量保留 YAML 注释和顺序写回配置。备份包含密钥，请与原配置一样妥善保护。保存成功后，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面可查看待生效值，但保存和刷新页面都不会热加载运行时配置。
 
-点击“保存配置”后，后端复用配置编辑核心校验，在覆盖前将旧配置备份到同目录的 `config.yml.bak`，并尽量保留 YAML 注释和顺序。进程需要拥有配置目录、配置文件和备份文件的写入权限；容器部署建议挂载可写目录，单文件 bind mount 可能阻止原子替换。备份包含密钥，请与原配置一样妥善保护。
-
-保存接口同样要求 Basic Auth，并检查页面携带的 CSRF token；进程重启后请刷新旧页面再保存。保存只写入配置文件，**需要重启 miniflux-ai 容器或进程，配置才会完全生效**；刷新页面可查看待生效值，但不会热加载运行配置。
+配置目录必须可写，且允许创建备份、临时文件及原子替换 `config.yml`。下面容器示例使用的单文件 bind mount（`./config.yml:/app/config.yml`）可能阻止原子替换；此时网页保存会失败并保留原配置。使用网页编辑时，应将配置放在可写、支持原子替换的目录中；不要通过删除备份或改为非原子写入绕过错误。
 
 ## Docker Setup
 

@@ -71,6 +71,7 @@ code, dd { font-family: Consolas, "Microsoft YaHei", monospace; font-size: 13px;
 dt code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
 dd { margin: 0; white-space: pre-wrap; line-height: 1.8; }
 
+.editable { white-space: normal; }
 .edit-field label { font-size: 14px; font-weight: 600; }
 .edit-field label code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
 input, textarea, select, button { font: inherit; }
@@ -89,11 +90,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
+small { display: block; margin-top: 8px; color: var(--muted); }
 .field-help, .save-actions p { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 .field-error { color: #a12622; font-size: 14px; margin: 8px 0 0; }
 [aria-invalid="true"], .error-notice { border-color: #a12622; }
 .error-notice strong { color: #a12622; }
 .error-notice ul { padding-left: 20px; margin-bottom: 0; }
+.success { border-color: #24733b; }
 .save-actions { padding: 8px 0 24px; }
 button {
   padding: 12px 24px;
