@@ -22,6 +22,9 @@
     {% if saved %}
     <p class="notice" role="status">Agent 配置已保存，旧配置已备份。需要重启 miniflux-ai 容器或进程才会完全生效。</p>
     {% endif %}
+    {% if warning %}
+    <p class="notice" role="alert">{{ warning }}</p>
+    {% endif %}
     {% if errors %}
     <div class="notice agent-errors" role="alert">
       <strong>保存失败，请检查以下配置。</strong>
@@ -59,7 +62,8 @@
           {% if field in ('allow_list', 'deny_list') %}
           <p id="{{ key }}-help">一行一个 pattern；忽略空行及行首尾空白，留空表示清空列表。</p>
           {% endif %}
-          <textarea id="{{ key }}" name="{{ key }}"{{ error_attrs }} rows="{{ 10 if field == 'prompt' else 4 }}"{% if field == 'prompt' %} required{% else %} aria-describedby="{{ key }}-help"{% endif %}>{{ values[key] }}</textarea>
+          <textarea id="{{ key }}" name="{{ key }}"{{ error_attrs }} rows="{{ 10 if field == 'prompt' else 4 }}"{% if field == 'prompt' %} required{% else %} aria-describedby="{{ key }}-help"{% endif %}>
+{{ values[key] }}</textarea>
           {% endif %}
         </div>
         {% endfor %}

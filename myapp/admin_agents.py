@@ -5,16 +5,9 @@ from secrets import token_urlsafe
 from flask import make_response, render_template, request
 
 from common.config_editor import AGENT_NAMES, ConfigEditor, ConfigEditorError, ConfigValidationError
-from myapp.admin import _is_authorized, _unauthorized_response
+from myapp.admin import AGENT_FIELDS, _is_authorized, _unauthorized_response
 
 
-AGENT_FIELDS = (
-    ('title', '标题'),
-    ('prompt', '提示词'),
-    ('style_block', '引用块样式'),
-    ('allow_list', '允许列表'),
-    ('deny_list', '排除列表'),
-)
 EDITABLE_FIELDS = {
     f'agents.{name}.{field}' for name in AGENT_NAMES for field, _ in AGENT_FIELDS
 }
@@ -40,6 +33,7 @@ def register_admin_agent_routes(app, config):
         else:
             editor = ConfigEditor(config_path)
             saved = False
+            warning = ''
             errors = {}
             status = 200
             values = {field: '' for field in EDITABLE_FIELDS}
@@ -64,7 +58,10 @@ def register_admin_agent_routes(app, config):
                     status = 500
                 else:
                     saved = True
-                    values = editor.render_form()
+                    try:
+                        values = editor.render_form()
+                    except ConfigEditorError:
+                        warning = '配置已保存，但无法重新读取；下方保留提交内容，请稍后刷新确认。'
             response = make_response(render_template(
                 'admin/config_agents.html',
                 agent_names=AGENT_NAMES,
@@ -72,6 +69,7 @@ def register_admin_agent_routes(app, config):
                 values={field: values[field] for field in EDITABLE_FIELDS},
                 csrf_token=csrf_token,
                 saved=saved,
+                warning=warning,
                 errors=errors,
             ), status)
         response.headers['Cache-Control'] = 'no-store'

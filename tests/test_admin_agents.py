@@ -18,6 +18,7 @@ class AgentFormParser(HTMLParser):
         self.fields = {}
         self.names = []
         self.current = None
+        self.textarea_start = False
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
@@ -28,10 +29,15 @@ class AgentFormParser(HTMLParser):
             self.fields[name] = attrs.get('value', '')
             if tag in ('textarea', 'select'):
                 self.current = name
+                self.textarea_start = tag == 'textarea'
         elif tag == 'option' and self.current and 'selected' in attrs:
             self.fields[self.current] = attrs['value']
 
     def handle_data(self, data):
+        if self.textarea_start:
+            # HTML browsers discard the first LF immediately after <textarea>.
+            data = data.removeprefix('\n')
+            self.textarea_start = False
         if self.current and not self.current.endswith('style_block'):
             self.fields[self.current] += data
 
@@ -350,6 +356,41 @@ class AdminAgentsTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         expected = {**form, 'agents.summary.title': '仅更新标题'}
         self.assertEqual(AgentFormParser(response.get_data(as_text=True)).fields, expected)
+
+    def test_browser_round_trip_preserves_leading_newlines_in_prompt(self):
+        client = self.client()
+        editor = importlib.import_module('common.config_editor').ConfigEditor(self.path)
+        editor.save({'agents.summary.prompt': '\n\n开头有空行\n${content}'})
+        response = client.get(self.url, headers=self.headers)
+        form = AgentFormParser(response.get_data(as_text=True)).fields
+        self.assertEqual(form['agents.summary.prompt'], '\n\n开头有空行\n${content}')
+        response = client.post(self.url, headers=self.headers, data=form)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(editor.load()['agents']['summary']['prompt'], '\n\n开头有空行\n${content}')
+
+    def test_post_save_read_failure_still_reports_success_and_keeps_input(self):
+        client = self.client()
+        form = AgentFormParser(client.get(self.url, headers=self.headers).get_data(as_text=True)).fields
+        form['agents.summary.title'] = '保存成功但重读失败'
+        real_open = Path.open
+
+        def fail_read_after_backup(path, *args, **kwargs):
+            if path.name == 'config.yml' and Path('config.yml.bak').exists():
+                raise OSError('sensitive-post-save-detail')
+            return real_open(path, *args, **kwargs)
+
+        with patch.object(Path, 'open', fail_read_after_backup):
+            response = client.post(self.url, headers=self.headers, data=form)
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('已保存', html)
+        self.assertIn('需要重启', html)
+        self.assertIn('重新读取', html)
+        self.assertNotIn('sensitive-post-save-detail', html)
+        self.assertEqual(AgentFormParser(html).fields, form)
+        editor = importlib.import_module('common.config_editor').ConfigEditor(self.path)
+        self.assertEqual(editor.load()['agents']['summary']['title'], '保存成功但重读失败')
+        self.assertTrue(Path('config.yml.bak').exists())
 
 
 if __name__ == '__main__':
