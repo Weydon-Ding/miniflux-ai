@@ -1,6 +1,20 @@
+import importlib.util
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
+
 from yaml import safe_load
-from core.entry_filter import filter_entry
+
+
+def load_filter_entry():
+    entry_filter_path = Path(__file__).resolve().parents[1] / "core" / "entry_filter.py"
+    spec = importlib.util.spec_from_file_location("entry_filter_mod", entry_filter_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.filter_entry
+
+
+filter_entry = load_filter_entry()
 
 test_config = '''
 {
@@ -59,7 +73,7 @@ test_entries = '''
     {
         "entry":
           {
-            "content": '<pre',
+            "content": '<blockquote>',
             "feed":
               {
                 "site_url": "https://weibo.com/1906286443/OAih1wghK",
@@ -116,7 +130,8 @@ class MyTestCase(unittest.TestCase):
 
         for agent in configs.items():
             entry = entries[list(configs.keys())[i]]
-            result = filter_entry(configs['test_style_block'], agent, entry['entry'])
+            config = SimpleNamespace(agents=configs['test_style_block']['agents'])
+            result = filter_entry(config, agent, entry['entry'])
             self.assertEqual(result, entry['result'])
             i += 1
 

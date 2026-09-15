@@ -66,6 +66,6 @@ def my_flask():
 
 if __name__ == '__main__':
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        if config.ai_news_schedule or config.miniflux_webhook_secret or config.feeds_status_enabled:
+        if config.ai_news_schedule or config.miniflux_webhook_secret or config.feeds_status_enabled or config.admin_enabled:
             executor.submit(my_flask)
         executor.submit(my_schedule)

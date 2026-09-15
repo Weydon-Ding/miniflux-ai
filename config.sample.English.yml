@@ -76,3 +76,13 @@ feeds_status:
   url: http://miniflux_ai
   # Default: run once per day at 09:00
   schedule: "09:00"
+
+admin:
+  # Disabled by default. Set to true only when you want to expose the config frontend.
+  enabled: false
+  # Username for the future admin Basic Auth protected config page.
+  username: admin
+  # Prefer setting the password through this environment variable instead of storing it in config.yml.
+  password_env: MINIFLUX_AI_ADMIN_PASSWORD
+  # Optional fallback if the environment variable is not set.
+  # password: change-me

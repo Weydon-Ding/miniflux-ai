@@ -55,6 +55,38 @@ class ConfigTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.Config()
 
+    def test_admin_config_defaults_to_disabled_with_default_username(self):
+        self.write_config("miniflux: {}\nllm: {}\n")
+
+        config = self.Config()
+
+        self.assertFalse(config.admin_enabled)
+        self.assertEqual(config.admin_username, "admin")
+        self.assertIsNone(config.admin_password)
+
+    def test_admin_config_reads_enabled_credentials_and_password_env(self):
+        self.write_config(
+            "admin:\n"
+            "  enabled: true\n"
+            "  username: operator\n"
+            "  password_env: CUSTOM_ADMIN_PASSWORD\n"
+            "  password: config-password\n"
+        )
+        old_password = os.environ.get("CUSTOM_ADMIN_PASSWORD")
+        os.environ["CUSTOM_ADMIN_PASSWORD"] = "env-password"
+        try:
+            config = self.Config()
+        finally:
+            if old_password is None:
+                del os.environ["CUSTOM_ADMIN_PASSWORD"]
+            else:
+                os.environ["CUSTOM_ADMIN_PASSWORD"] = old_password
+
+        self.assertTrue(config.admin_enabled)
+        self.assertEqual(config.admin_username, "operator")
+        self.assertEqual(config.admin_password_env, "CUSTOM_ADMIN_PASSWORD")
+        self.assertEqual(config.admin_password, "env-password")
+
 
 if __name__ == "__main__":
     unittest.main()
