@@ -75,3 +75,13 @@ feeds_status:
   url: http://miniflux_ai
   # 默认每天 09:00 执行一次
   schedule: "09:00"
+
+admin:
+  # 默认关闭。只有明确改成 true 时才会暴露配置前端入口。
+  enabled: false
+  # 后续 Basic Auth 保护的配置页面用户名。
+  username: admin
+  # 建议通过该环境变量设置密码，避免把密码写入 config.yml。
+  password_env: MINIFLUX_AI_ADMIN_PASSWORD
+  # 如果未设置环境变量，可使用该配置作为回退密码。
+  # password: change-me

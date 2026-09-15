@@ -1,3 +1,5 @@
+import os
+
 from yaml import safe_load
 
 class Config:
@@ -32,6 +34,11 @@ class Config:
         self.feeds_status_enabled = self.get_config_value('feeds_status', 'enabled', False)
         self.feeds_status_url = self.get_config_value('feeds_status', 'url', self.ai_news_url)
         self.feeds_status_schedule = self.get_config_value('feeds_status', 'schedule', '09:00')
+
+        self.admin_enabled = self.get_config_value('admin', 'enabled', False) is True
+        self.admin_username = self.get_config_value('admin', 'username', 'admin')
+        self.admin_password_env = self.get_config_value('admin', 'password_env', 'MINIFLUX_AI_ADMIN_PASSWORD')
+        self.admin_password = os.environ.get(self.admin_password_env) or self.get_config_value('admin', 'password', None)
 
         self.agents = self.c.get('agents', {})
 
