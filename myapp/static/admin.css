@@ -72,36 +72,42 @@ dt code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted)
 dd { margin: 0; white-space: pre-wrap; line-height: 1.8; }
 
 .editable { white-space: normal; }
-input:not([type="hidden"]), select, textarea {
+.edit-field label { font-size: 14px; font-weight: 600; }
+.edit-field label code { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
+input, textarea, select, button { font: inherit; }
+input:not([type="hidden"]), textarea, select {
   display: block;
   width: 100%;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
   color: var(--text);
-  font: inherit;
 }
-textarea { resize: vertical; min-height: 140px; }
-input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+textarea { resize: vertical; font-family: Consolas, "Microsoft YaHei", monospace; font-size: 14px; line-height: 1.7; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
   outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 small { display: block; margin-top: 8px; color: var(--muted); }
+.field-help, .save-actions p { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.field-error { color: #a12622; font-size: 14px; margin: 8px 0 0; }
+[aria-invalid="true"], .error-notice { border-color: #a12622; }
+.error-notice strong { color: #a12622; }
+.error-notice ul { padding-left: 20px; margin-bottom: 0; }
+.success { border-color: #24733b; }
+.save-actions { padding: 8px 0 24px; }
 button {
-  margin: 0 0 32px;
-  padding: 12px 20px;
-  border: 0;
+  padding: 12px 24px;
+  border: 1px solid var(--accent);
   border-radius: 4px;
   background: var(--accent);
-  color: white;
-  font: inherit;
+  color: var(--surface);
+  font-weight: 600;
   cursor: pointer;
 }
-.success { border-color: #24733b; }
-.error { border-color: #a12020; }
-.error strong, .field-error { color: #a12020; }
-[aria-invalid="true"] { border-color: #a12020; }
+button:hover { text-decoration: underline; }
 
 @media (max-width: 760px) {
   body { padding: 24px 16px 40px; }

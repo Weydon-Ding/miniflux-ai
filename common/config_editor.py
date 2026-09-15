@@ -2,13 +2,12 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass
-from io import StringIO
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
-from yaml import safe_load as pyyaml_safe_load
+from yaml import safe_dump as pyyaml_safe_dump, safe_load as pyyaml_safe_load
 
 
 SECRET_PLACEHOLDER = "********"
@@ -237,9 +236,10 @@ class ConfigEditor:
                     errors.append(FieldError(field, "required", "This field is required when ai_news.schedule is configured"))
 
         if self._is_feeds_status_enabled(values, document):
-            value = values.get("feeds_status.url")
-            if self._is_blank(value):
-                value = self._feeds_status_url_default(document)
+            fallback_url = values.get("ai_news.url", self._get_path(document, "ai_news.url"))
+            value = values.get(
+                "feeds_status.url", self._get_path(document, "feeds_status.url", fallback_url),
+            )
             if self._is_blank(value):
                 errors.append(FieldError("feeds_status.url", "required", "This field is required when feeds_status.enabled is true"))
             schedule = values.get(
@@ -496,9 +496,9 @@ class ConfigEditor:
     def _dump_mapping(self, value):
         if not value:
             return ""
-        stream = StringIO()
-        self.snippet_yaml.dump(self._to_plain_data(value), stream)
-        return stream.getvalue().strip()
+        return pyyaml_safe_dump(
+            self._to_plain_data(value), allow_unicode=True, sort_keys=False,
+        ).strip()
 
     def _to_plain_data(self, value):
         if isinstance(value, dict):
@@ -551,7 +551,7 @@ class ConfigEditor:
         return False
 
     def _valid_time(self, value):
-        if len(value) != 5 or value[2] != ":":
+        if len(value) != 5 or value[2] != ":" or not value.isascii():
             return False
         hour = value[:2]
         minute = value[3:]

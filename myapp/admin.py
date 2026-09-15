@@ -13,7 +13,10 @@ from common.config_editor import (
 
 
 _ADMIN_REALM = 'miniflux-ai admin'
-_EDITABLE_FIELDS = {field for field in FIELD_ORDER if field.startswith(('miniflux.', 'llm.'))}
+_EDITABLE_FIELDS = {
+    field for field in FIELD_ORDER
+    if field.startswith(('miniflux.', 'llm.', 'ai_news.', 'feeds_status.'))
+}
 
 
 def _unauthorized_response():
@@ -102,8 +105,30 @@ def _config_sections(config):
     return sections
 
 
+def _validation_message(error):
+    if error.code == 'invalid_time':
+        return ('请一行填写一个 HH:MM 时间（00:00–23:59）。' if error.field == 'ai_news.schedule'
+                else '请填写单个 HH:MM 时间（00:00–23:59）。')
+    if error.code == 'required':
+        return '此配置项必填；请补全后重试，只读项请在 config.yml 中修正。'
+    if error.field in INT_FIELDS:
+        return f'请输入不小于 {INT_FIELDS[error.field]} 的整数。'
+    if error.code == 'choice':
+        return '请选择 openai 或 gemini。'
+    if error.code in ('invalid_yaml', 'invalid_mapping'):
+        return '请输入有效的 YAML mapping，不能使用列表或标量。'
+    return '配置值无效，请检查格式后重试。'
+
+
 def register_admin_routes(app, config):
     config_path = Path('config.yml').resolve()
+
+    @app.after_request
+    def protect_admin_response(response):
+        if request.endpoint == 'admin_config':
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['X-Frame-Options'] = 'DENY'
+        return response
 
     @app.route('/admin/config', methods=['GET', 'POST'])
     def admin_config():
@@ -135,19 +160,8 @@ def register_admin_routes(app, config):
             try:
                 editor.save(submitted)
             except ConfigValidationError as exc:
+                errors = {error.field: _validation_message(error) for error in exc.errors}
                 status = 400
-                for error in exc.errors:
-                    if error.code == 'required':
-                        message = '此项不能为空；只读项请在 config.yml 中修正。'
-                    elif error.field in INT_FIELDS:
-                        message = f'请输入不小于 {INT_FIELDS[error.field]} 的整数。'
-                    elif error.code == 'choice':
-                        message = '请选择 openai 或 gemini。'
-                    elif error.code in ('invalid_yaml', 'invalid_mapping'):
-                        message = '请输入有效的 YAML mapping，不能使用列表或标量。'
-                    else:
-                        message = '配置值无效，请检查此项。'
-                    errors[error.field] = message
             except ConfigLoadError:
                 status = 500
                 save_error = '读取配置失败，配置未保存。请检查 config.yml。'
