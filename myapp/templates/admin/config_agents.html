@@ -15,7 +15,8 @@
     <aside class="notice" aria-label="配置生效说明">
       <strong>保存后需要重启</strong>
       <p>表单读取磁盘上的 config.yml；保存配置后，需要重启 miniflux-ai 容器或进程，配置才会完全生效。</p>
-      <p>仅编辑 summary 和 translate，不支持新增或删除 agent。保存前会备份旧配置到 config.yml.bak。</p>
+      <p>重启前当前进程仍使用启动时加载的 Agent 配置；刷新页面只会查看磁盘中的待生效值。</p>
+      <p>固定 summary 和 translate 两个 Agent，不支持新增或删除 agent。保存前会备份旧配置到 config.yml.bak。</p>
     </aside>
   </header>
   <main>

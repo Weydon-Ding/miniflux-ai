@@ -147,8 +147,10 @@ class AdminAgentsTestCase(unittest.TestCase):
         for field, value in expected.items():
             with self.subTest(field=field):
                 self.assertEqual(form.fields[field], value)
+        self.assertIn('固定 summary 和 translate', html)
         self.assertIn('一行一个 pattern', html)
-        self.assertIn('需要重启', html)
+        self.assertIn('保存后需要重启', html)
+        self.assertIn('重启前当前进程仍使用启动时加载的 Agent 配置', html)
         self.assertIn('method="post"', html)
         for secret in ('miniflux-secret', 'llm-secret', 'webhook-secret', 'admin-secret', 'custom_agent'):
             self.assertNotIn(secret, html)

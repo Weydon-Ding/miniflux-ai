@@ -443,6 +443,33 @@ class AdminRouteTestCase(unittest.TestCase):
         self.assertIn("保存配置后，需要重启", html)
         self.assertIn("才会完全生效", html)
 
+    def test_config_overview_explains_secret_retention_restart_and_sections(self):
+        app = self.import_admin_app()
+
+        response = app.test_client().get(
+            "/admin/config",
+            headers=self.basic_auth_header("operator", "test-admin-password"),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("密钥保留规则", html)
+        for key in ("miniflux.api_key", "miniflux.webhook_secret", "llm.api_key"):
+            with self.subTest(key=key):
+                self.assertIn(f"<code>{key}</code>", html)
+        self.assertIn("留空或保持", html)
+        self.assertIn("输入新值才会替换", html)
+        self.assertIn("重启前当前进程仍使用启动时加载的配置", html)
+        for summary in (
+            "连接 Miniflux",
+            "配置 provider、模型、速率限制",
+            "固定 summary / translate",
+            "配置每日生成时间和新闻提示词",
+            "配置订阅健康检查 feed",
+        ):
+            with self.subTest(summary=summary):
+                self.assertIn(summary, html)
+
     def test_config_overview_masks_secrets_without_sending_plaintext(self):
         app = self.import_admin_app()
 
